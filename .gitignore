@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+BLSAmiRNATargetTable.csv
+Predicted_Targets_Info.default_predictions.txt.zip
+Predicted_Targets_Info.default_predictions.txt
+Nonconserved_Family_Info.txt.zip
+Nonconserved_Family_Info.txt
+map_mirna_prot_mods.nb.html
