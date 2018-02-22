@@ -19,7 +19,7 @@ tsDf <- PWBAnalysis::grabTargetScanTargets()
 Filter down to two targets of interest
 
 ```{r}
-tsDfReduced <- PWBAnalysis::getTargetScanTargets()
+tsDfReduced <- PWBAnalysis::getTargetScanTargets(miRs = c('miR-484/3155','miR-197-3p'))
 tsDfReduced
 ```
 
@@ -28,6 +28,7 @@ Turn both protein mods and targets into lists for mutual enrichment analyses
 ```{r}
 tsDfReducedR <- dplyr::select(tsDfReduced,`miR Family`,`Gene Symbol`)
 tsDfReducedR <- tsDfReducedR[!duplicated(tsDfReducedR),]
+tsDfReducedR$`miR Family`[tsDfReducedR$`miR Family` == 'miR-484/3155'] <- 'miR-484'
 mrnaList <- lapply(unique(tsDfReducedR$`miR Family`),utilityFunctions::listify,tsDfReducedR$`Gene Symbol`,tsDfReducedR$`miR Family`)
 names(mrnaList) <- unique(tsDfReducedR$`miR Family`)
 
@@ -58,12 +59,12 @@ blsaPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
 
 actPval2 <- data.frame(t(actPval),stringsAsFactors=F)
 actPval2$module <- row.names(actPval2)
-actPval3 <- tidyr::gather(actPval2,key='key',value='value',1:3)
+actPval3 <- tidyr::gather(actPval2,key='key',value='value',1:2)
 actPval3$pAdj <- p.adjust(actPval3$value,method='fdr')
 
 blsaPval2 <- data.frame(t(blsaPval),stringsAsFactors=F)
 blsaPval2$module <- row.names(blsaPval2)
-blsaPval3 <- tidyr::gather(blsaPval2,key='key',value='value',1:3)
+blsaPval3 <- tidyr::gather(blsaPval2,key='key',value='value',1:2)
 blsaPval3$pAdj <- p.adjust(blsaPval3$value,method='fdr')
 
 ```
@@ -93,4 +94,22 @@ g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 
 g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
 g <- g + ggplot2::ggtitle('ACT miRNA target Gene Set enrichments')
 g
+```
+
+Table of targets
+```{r}
+n1 <- intersect(blsaList$`B-M1`,mrnaList$`miR-484`)
+n2 <- intersect(blsaList$`B-M4`,mrnaList$`miR-484`)
+n3 <- intersect(blsaList$`B-M1`,mrnaList$`miR-197-3p`)
+n4 <- intersect(blsaList$`B-M4`,mrnaList$`miR-197-3p`)
+targetTable <- data.frame(Gene = c(n1,n2,n3,n4),
+                          Module = c(rep('B-M1',length(n1)),
+                                                           rep('B-M4',length(n2)),
+                                                           rep('B-M1',length(n3)),
+                                                           rep('B-M4',length(n4))),
+                          miRNA = c(rep('miR-484',length(n1)+length(n2)),
+                                    rep('miR-197-3p',length(n3)+length(n4))),
+                          stringsAsFactors = F)
+targetTable
+write.csv(targetTable,file='BLSAmiRNATargetTable.csv',quote=F,row.names=F)
 ```
