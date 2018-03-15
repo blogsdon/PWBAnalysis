@@ -1,0 +1,114 @@
+---
+title: "Project 2"
+output: html_notebook
+---
+
+Pull protein mods
+
+```{r}
+protMods <- PWBAnalysis::grabProteinMods()
+protMods
+```
+
+Load in differential expression genes and create new column, then make a list
+```{r}
+deg <- data.table::fread('samedirection_fdr_meta_stderr_preciseprotein_mmse_banBLSA.csv',data.table=F)
+deg$Gene <- sapply(deg$Protein,function(x){strsplit(x,'\\.')[[1]][1]})
+degList <- list()
+degList$deg <- deg$Gene
+degList$dummy <- c('VGF','APOE')
+```
+
+Make Lists of modules
+
+```{r}
+actDf <- dplyr::filter(protMods,Study=='ACT')
+actList <- lapply(unique(actDf$Module),utilityFunctions::listify,actDf$Gene,actDf$Module)
+names(actList) <- unique(actDf$Module)
+
+blsaDf <- dplyr::filter(protMods,Study=='BLSA')
+blsaList <- lapply(unique(blsaDf$Module),utilityFunctions::listify,blsaDf$Gene,blsaDf$Module)
+names(blsaList) <- unique(blsaDf$Module)
+
+bannerDf <- dplyr::filter(protMods,Study=='Banner')
+bannerList <- lapply(unique(bannerDf$Module),utilityFunctions::listify,bannerDf$Gene,bannerDf$Module)
+names(bannerList) <- unique(bannerDf$Module)
+```
+
+Run enrichment analyses
+
+```{r}
+library(dplyr)
+actPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
+                                         actList,
+                                         degList,
+                                         allGenes = actDf$Gene)
+
+blsaPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
+                                          blsaList,
+                                          degList,
+                                          allGenes = blsaDf$Gene)
+
+bannerPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
+                                          bannerList,
+                                          degList,
+                                          allGenes = bannerDf$Gene)
+
+actPval2 <- data.frame(t(actPval),stringsAsFactors=F)
+actPval2$module <- row.names(actPval2)
+actPval3 <- tidyr::gather(actPval2,key='key',value='value',1:2)
+actPval3 <- dplyr::filter(actPval3,key=='deg')
+actPval3$pAdj <- p.adjust(actPval3$value,method='fdr')
+
+blsaPval2 <- data.frame(t(blsaPval),stringsAsFactors=F)
+blsaPval2$module <- row.names(blsaPval2)
+blsaPval3 <- tidyr::gather(blsaPval2,key='key',value='value',1:2)
+blsaPval3 <- dplyr::filter(blsaPval3,key=='deg')
+blsaPval3$pAdj <- p.adjust(blsaPval3$value,method='fdr')
+
+bannerPval2 <- data.frame(t(bannerPval),stringsAsFactors=F)
+bannerPval2$module <- row.names(bannerPval2)
+bannerPval3 <- tidyr::gather(bannerPval2,key='key',value='value',1:2)
+bannerPval3 <- dplyr::filter(bannerPval3,key=='deg')
+bannerPval3$pAdj <- p.adjust(bannerPval3$value,method='fdr')
+```
+
+plots
+```{r}
+g <- ggplot2::ggplot(blsaPval3,ggplot2::aes(x=module,
+                                            y= -log10(pAdj),
+                                            fill = key))
+
+g <- g + ggplot2::geom_col(position = 'dodge')
+g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
+g <- g + ggplot2::ggtitle('BLSA cog dec proteins Gene Set enrichments')
+g
+ggplot2::ggsave('blsa_cogdec.png')
+```
+
+
+```{r}
+g <- ggplot2::ggplot(actPval3,ggplot2::aes(x=module,
+                                            y= -log10(pAdj),
+                                            fill = key))
+
+g <- g + ggplot2::geom_col(position = 'dodge')
+g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
+g <- g + ggplot2::ggtitle('ACT cog dec proteins Gene Set enrichments')
+g
+ggplot2::ggsave('act_cogdec.png')
+```
+```{r}
+g <- ggplot2::ggplot(bannerPval3,ggplot2::aes(x=module,
+                                            y= -log10(pAdj),
+                                            fill = key))
+
+g <- g + ggplot2::geom_col(position = 'dodge')
+g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
+g <- g + ggplot2::ggtitle('Banner cog dec proteins Gene Set enrichments')
+g
+ggplot2::ggsave('banner_cogdec.png')
+```

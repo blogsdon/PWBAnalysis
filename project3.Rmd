@@ -1,0 +1,176 @@
+---
+title: "Project 3"
+output: html_notebook
+---
+
+Pull expression data and extract module eigengenes for aggregate modules
+
+```{r}
+foobar <- PWBAnalysis::get_eigengenes()
+str(foobar)
+ROSMAP <- foobar$DLPFC
+```
+
+Load all relevant data for downstream analyses
+
+First we load in the PiL data
+
+
+```{r}
+foo <- data.table::fread('ROSMAP_PiL_dep_cog.csv',data.table=F)
+#foo <- dplyr::filter(foo,fu_year==0)
+```
+
+Next we load in the design matrix 
+
+```{r}
+synapser::synLogin()
+dmobj <- synapser::synGet('syn8456640')
+dm <- data.table::fread(dmobj$path,data.table=F)
+```
+
+Next we load in the covariate data
+
+```{r}
+synapser::synLogin()
+covobj <- synapser::synGet('syn3191087')
+cova <- data.table::fread(covobj$path,data.table=F)
+#cova <- cova[,-1]
+colnames(cova)
+cova <- dplyr::select(cova,projid,cogdx,braaksc,ceradsc,age_first_ad_dx,educ)
+```
+Next we join all the relevant data frames
+
+```{r}
+key <- data.table::fread("key.csv",data.table=F)
+foo <- dplyr::left_join(foo,key)
+foo <- dplyr::filter(foo,!is.na(Sampleid))
+foo <- dplyr::left_join(foo,dm,by=c('Sampleid'='SampleID'))
+foo <- dplyr::left_join(foo,cova)
+```
+
+
+turn pcs into a single data frame and merge
+```{r}
+internalFxn <- function(name1,df){
+  colnames(df) <- paste0(name1,colnames(df))
+  return(df)
+}
+ROSMAP2 <- mapply(internalFxn,
+                  names(ROSMAP),
+                  ROSMAP,
+                  SIMPLIFY = F)
+ROSMAP2 <- do.call(cbind,ROSMAP2)
+ROSMAP2 <- data.frame(ROSMAP2,stringsAsFactors = F)
+ROSMAP2$Sampleid <- rownames(ROSMAP2)
+foo <- dplyr::left_join(foo,ROSMAP2,by='Sampleid')
+```
+
+filter out dementia for depression
+
+```{r}
+foo2 <- dplyr::filter(foo,dcfdx ==1 | dcfdx ==2)
+```
+
+```{r}
+run_re_model <- function(geneId,pheno,foo,braak=FALSE){
+  if(!braak){
+    str <- paste0(pheno," ~ ",geneId," + dcfdx + (1|projid) + SexFEMALE + age_at_visit")
+  }else{
+    str <- paste0(pheno," ~ ",geneId," + dcfdx + (1|projid) + SexFEMALE + age_at_visit + braaksc")
+  }
+  str <- as.formula(str)
+  #res<-lme4::lmer(str,foo)
+  res <- lme4::lmer(str,foo)
+  return(summary(res)$coef[2,3])
+}
+
+run_lm_model <- function(geneId,pheno,foo,braak=FALSE){
+  if(!braak){
+    str <- paste0(pheno," ~ ",geneId," + dcfdx + SexFEMALE + age_at_visit")
+  }else{
+    str <- paste0(pheno," ~ ",geneId," + dcfdx + (1|projid) + SexFEMALE + age_at_visit + braaksc")
+  }
+  str <- as.formula(str)
+  #res<-lme4::lmer(str,foo)
+  res <- lm(str,foo)
+  return(summary(res)$coef[2,4])
+}
+```
+
+get t-statistics
+
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'r_depres',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_ep',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_po',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_po',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_ps',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_se',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_wo',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cogn_global',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+```{r}
+modNames <- colnames(foo2)[40:59]
+tvec <- sapply(modNames,run_re_model,'cesdsum',foo2)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
+
+Baseline purpose in life
+```{r}
+foo3 <- dplyr::filter(foo2,fu_year==0)
+tvec <- sapply(modNames,run_lm_model,'purpose_total',foo3)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec.adj <- p.adjust(pvec,method='fdr')
+which(pvec.adj<=0.05)
+```
