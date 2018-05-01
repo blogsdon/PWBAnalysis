@@ -6,9 +6,10 @@ output: html_notebook
 Pull expression data and extract module eigengenes for aggregate modules
 
 ```{r}
-foobar <- PWBAnalysis::get_eigengenes()
+#foobar <- PWBAnalysis::get_eigengenes()
+foobar <- PWBAnalysis::get_eigengenes_tissue()
 str(foobar)
-ROSMAP <- foobar$DLPFC
+ROSMAP <- foobar
 ```
 
 Load all relevant data for downstream analyses
@@ -101,67 +102,67 @@ run_lm_model <- function(geneId,pheno,foo,braak=FALSE){
 get t-statistics
 
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'r_depres',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_ep',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_po',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_po',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_ps',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_se',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_wo',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cogn_global',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
 ```{r}
-modNames <- colnames(foo2)[40:59]
+modNames <- colnames(foo2)[40:489]
 tvec <- sapply(modNames,run_re_model,'cesdsum',foo2)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```
@@ -170,7 +171,7 @@ Baseline purpose in life
 ```{r}
 foo3 <- dplyr::filter(foo2,fu_year==0)
 tvec <- sapply(modNames,run_lm_model,'purpose_total',foo3)
-pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)
+pvec <- pt(abs(tvec),length(unique(foo2$projid)),lower.tail=F)*2
 pvec.adj <- p.adjust(pvec,method='fdr')
 which(pvec.adj<=0.05)
 ```

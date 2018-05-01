@@ -1,5 +1,7 @@
-get_eigengenes <- function(synId = 'syn11932957'){
-  aggMods <- rSynapseUtilities::loadFullTable(synId)
+get_eigengenes_tissue <- function(synId = 'syn10309369',tissue = 'DLPFC'){
+  #aggMods <- rSynapseUtilities::loadFullTable(synId)
+  synapseClient::synapseLogin()
+  mods <- synapseClient::synTableQuery(paste0("select * from ",synId," where brainRegion = \'",tissue,'\''))@values
   geneExpressionForAnalysis <- AMPAD::pullExpressionAndPhenoWinsorized()
   names(geneExpressionForAnalysis) <- c('TCX','CBE','DLPFC','FP','STG','PHG','IFG')
   computeEigengene <- function(br,geneExp,moduleDefinitions){
@@ -7,7 +9,7 @@ get_eigengenes <- function(synId = 'syn11932957'){
     geneExp <- geneExp[[br]]
 
     #get modules
-    mods <- dplyr::filter(moduleDefinitions,brainRegion==br)
+    #mods <- dplyr::filter(moduleDefinitions,brainRegion==br)
     #convert modules into list of genes
     modsDefs <- lapply(unique(mods$ModuleNameFull),
                        utilityFunctions::listify,
@@ -20,8 +22,8 @@ get_eigengenes <- function(synId = 'syn11932957'){
       geneExpMod <- dplyr::select(geneExp,modsDefs[[mod]])
       geneExpMod <- scale(geneExpMod)
       foo <- svd(geneExpMod)
-      eigenGenes <- foo$u[,1:5]
-      colnames(eigenGenes) <- paste0('pc',1:5)
+      eigenGenes <- as.matrix(foo$u[,1])
+      colnames(eigenGenes) <- paste0('pc',1)
       rownames(eigenGenes) <- geneExp$aSampleId
       #res <- cor(eigenGenes,geneExpMod)
       return(eigenGenes)
@@ -32,7 +34,8 @@ get_eigengenes <- function(synId = 'syn11932957'){
     return(full_res)
   }
 
-  fullList<-lapply(names(geneExpressionForAnalysis),computeEigengene,geneExpressionForAnalysis,aggMods)
-  names(fullList) <- names(geneExpressionForAnalysis)
+  fullList<-computeEigengene(tissue,geneExpressionForAnalysis,mods)
+  #fullList<-lapply(names(geneExpressionForAnalysis)[keep],computeEigengene,geneExpressionForAnalysis,aggMods)
+  #names(fullList) <- names(geneExpressionForAnalysis)
   return(fullList)
 }
