@@ -12,20 +12,44 @@ protMods
 
 Load in differential expression genes and create new column, then make a list
 ```{r}
-deg <- data.table::fread('samedirection_fdr_meta_stderr_preciseprotein_mmse_banBLSA.csv',data.table=F)
+#deg <- data.table::fread('samedirection_fdr_meta_stderr_preciseprotein_mmse_banBLSA.csv',data.table=F)
+#deg$Gene <- sapply(deg$Protein,function(x){strsplit(x,'\\.')[[1]][1]})
+#degList <- list()
+#degList$deg <- deg$Gene
+#degList$degUp <- deg$Gene[deg$Direction=='++']
+#degList$degDown <- deg$Gene[deg$Direction=='--']
+deg1 <- list()
+deg1$up <- data.table::fread('List1Up.csv',data.table=F)
+deg1$down <- data.table::fread('List1Down.csv',data.table=F)
+deg1 <- do.call('rbind',deg1)
+deg1$set <- 'list1'
+
+deg2 <- list()
+deg2$up <- data.table::fread('List2Up.csv',data.table=F)
+deg2$down <- data.table::fread('List2Down.csv',data.table=F)
+deg2 <- do.call('rbind',deg2)
+deg2$set <- 'list2'
+
+deg <- rbind(deg1,deg2)
 deg$Gene <- sapply(deg$Protein,function(x){strsplit(x,'\\.')[[1]][1]})
+deg$Gene <- sapply(deg$Gene,function(x){strsplit(x,'\\|')[[1]][1]})
+
 degList <- list()
-degList$deg <- deg$Gene
-degList$degUp <- deg$Gene[deg$Direction=='++']
-degList$degDown <- deg$Gene[deg$Direction=='--']
+degList$deg1 <- deg$Gene[deg$set == 'list1']
+degList$deg1Up <- deg$Gene[deg$Direction=='++' & deg$set == 'list1']
+degList$deg1Down <- deg$Gene[deg$Direction=='--' & deg$set == 'list1']
+degList$deg2 <- deg$Gene[deg$set == 'list2']
+degList$deg2Up <- deg$Gene[deg$Direction=='++' & deg$set == 'list2']
+degList$deg2Down <- deg$Gene[deg$Direction=='--' & deg$set == 'list1']
+
 ```
 
 Make Lists of modules
 
 ```{r}
-actDf <- dplyr::filter(protMods,Study=='ACT')
-actList <- lapply(unique(actDf$Module),utilityFunctions::listify,actDf$Gene,actDf$Module)
-names(actList) <- unique(actDf$Module)
+# actDf <- dplyr::filter(protMods,Study=='ACT')
+# actList <- lapply(unique(actDf$Module),utilityFunctions::listify,actDf$Gene,actDf$Module)
+# names(actList) <- unique(actDf$Module)
 
 blsaDf <- dplyr::filter(protMods,Study=='BLSA')
 blsaList <- lapply(unique(blsaDf$Module),utilityFunctions::listify,blsaDf$Gene,blsaDf$Module)
@@ -40,10 +64,10 @@ Run enrichment analyses
 
 ```{r}
 library(dplyr)
-actPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
-                                         actList,
-                                         degList,
-                                         allGenes = actDf$Gene)
+# actPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
+#                                          actList,
+#                                          degList,
+#                                          allGenes = actDf$Gene)
 
 blsaPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
                                           blsaList,
@@ -55,75 +79,142 @@ bannerPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
                                           degList,
                                           allGenes = bannerDf$Gene)
 
-actPval2 <- data.frame(t(actPval),stringsAsFactors=F)
-actPval2$module <- row.names(actPval2)
-actPval3 <- tidyr::gather(actPval2,key='key',value='value',1:3)
-#actPval3 <- dplyr::filter(actPval3,key=='deg')
-actPval3$pAdj <- p.adjust(actPval3$value,method='fdr')
+# actPval2 <- data.frame(t(actPval),stringsAsFactors=F)
+# actPval2$module <- row.names(actPval2)
+# actPval3 <- tidyr::gather(actPval2,key='key',value='value',1:3)
+# #actPval3 <- dplyr::filter(actPval3,key=='deg')
+# actPval3$pAdj <- p.adjust(actPval3$value,method='fdr')
 
 blsaPval2 <- data.frame(t(blsaPval),stringsAsFactors=F)
 blsaPval2$module <- row.names(blsaPval2)
-blsaPval3 <- tidyr::gather(blsaPval2,key='key',value='value',1:3)
+blsaPval3 <- tidyr::gather(blsaPval2,key='key',value='value',1:6)
 #blsaPval3 <- dplyr::filter(blsaPval3,key=='deg')
 blsaPval3$pAdj <- p.adjust(blsaPval3$value,method='fdr')
 
 bannerPval2 <- data.frame(t(bannerPval),stringsAsFactors=F)
 bannerPval2$module <- row.names(bannerPval2)
-bannerPval3 <- tidyr::gather(bannerPval2,key='key',value='value',1:3)
+bannerPval3 <- tidyr::gather(bannerPval2,key='key',value='value',1:6)
 #bannerPval3 <- dplyr::filter(bannerPval3,key=='deg')
 bannerPval3$pAdj <- p.adjust(bannerPval3$value,method='fdr')
 ```
 
-plots
+plots (no pathology)
 ```{r}
-g <- ggplot2::ggplot(blsaPval3,ggplot2::aes(x=module,
+dummyDf <- dplyr::filter(blsaPval3,module != 'grey')
+dummyDf <- dplyr::filter(dummyDf,key == 'deg1' | key == 'deg1Up' | key == 'deg1Down')
+dummyDf$key[dummyDf$key=='deg1'] <- 'All'
+dummyDf$key[dummyDf$key=='deg1Up'] <- 'Up'
+dummyDf$key[dummyDf$key=='deg1Down'] <- 'Down'
+#dummyDf <- dplyr::arrange(dummyDf,pAdj)
+summaryDf <- dplyr::group_by(dummyDf,module) %>%
+  dplyr::summarise(meanPval = mean(-log10(pAdj))) %>%
+  dplyr::arrange((meanPval))
+
+dummyDf$module <- factor(dummyDf$module,levels = summaryDf$module)
+ggplot2::theme_set(ggplot2::theme_bw(base_size = 12))
+g <- ggplot2::ggplot(dummyDf,ggplot2::aes(x=module,
                                             y= -log10(pAdj),
                                             fill = key))
 
 g <- g + ggplot2::geom_col(position = 'dodge')
 g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::coord_flip()
 g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
-g <- g + ggplot2::ggtitle('BLSA cog dec proteins Gene Set enrichments')
+g <- g + ggplot2::ggtitle('cog dec DEG BLSA Module enrichments')
 g
 ggplot2::ggsave('blsa_cogdec.png')
 ```
 
-
+With pathology adjustment
 ```{r}
-g <- ggplot2::ggplot(actPval3,ggplot2::aes(x=module,
+dummyDf <- dplyr::filter(blsaPval3,module != 'grey')
+dummyDf <- dplyr::filter(dummyDf,key == 'deg2' | key == 'deg2Up' | key == 'deg2Down')
+dummyDf$key[dummyDf$key=='deg2'] <- 'All'
+dummyDf$key[dummyDf$key=='deg2Up'] <- 'Up'
+dummyDf$key[dummyDf$key=='deg2Down'] <- 'Down'
+#dummyDf <- dplyr::arrange(dummyDf,pAdj)
+summaryDf <- dplyr::group_by(dummyDf,module) %>%
+  dplyr::summarise(meanPval = mean(-log10(pAdj))) %>%
+  dplyr::arrange((meanPval))
+
+dummyDf$module <- factor(dummyDf$module,levels = summaryDf$module)
+ggplot2::theme_set(ggplot2::theme_bw(base_size = 12))
+g <- ggplot2::ggplot(dummyDf,ggplot2::aes(x=module,
                                             y= -log10(pAdj),
                                             fill = key))
 
 g <- g + ggplot2::geom_col(position = 'dodge')
 g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::coord_flip()
 g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
-g <- g + ggplot2::ggtitle('ACT cog dec proteins Gene Set enrichments')
+g <- g + ggplot2::ggtitle('cog dec DEG BLSA Module enrichments\n(pathology adjusted)')
 g
-ggplot2::ggsave('act_cogdec.png')
+ggplot2::ggsave('blsa_cogdec_pathology.png')
 ```
+
+no pathology
 ```{r}
-g <- ggplot2::ggplot(bannerPval3,ggplot2::aes(x=module,
+dummyDf <- dplyr::filter(bannerPval3,module != 'grey')
+dummyDf <- dplyr::filter(dummyDf,key == 'deg1' | key == 'deg1Up' | key == 'deg1Down')
+dummyDf$key[dummyDf$key=='deg1'] <- 'All'
+dummyDf$key[dummyDf$key=='deg1Up'] <- 'Up'
+dummyDf$key[dummyDf$key=='deg1Down'] <- 'Down'
+#dummyDf <- dplyr::arrange(dummyDf,pAdj)
+summaryDf <- dplyr::group_by(dummyDf,module) %>%
+  dplyr::summarise(meanPval = mean(-log10(pAdj))) %>%
+  dplyr::arrange((meanPval))
+
+dummyDf$module <- factor(dummyDf$module,levels = summaryDf$module)
+ggplot2::theme_set(ggplot2::theme_bw(base_size = 12))
+g <- ggplot2::ggplot(dummyDf,ggplot2::aes(x=module,
                                             y= -log10(pAdj),
                                             fill = key))
 
 g <- g + ggplot2::geom_col(position = 'dodge')
 g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::coord_flip()
 g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
-g <- g + ggplot2::ggtitle('Banner cog dec proteins Gene Set enrichments')
+g <- g + ggplot2::ggtitle('cog dec DEG Banner Module enrichments')
 g
 ggplot2::ggsave('banner_cogdec.png')
 ```
 
+
+```{r}
+dummyDf <- dplyr::filter(bannerPval3,module != 'grey')
+dummyDf <- dplyr::filter(dummyDf,key == 'deg2' | key == 'deg2Up' | key == 'deg2Down')
+dummyDf$key[dummyDf$key=='deg2'] <- 'All'
+dummyDf$key[dummyDf$key=='deg2Up'] <- 'Up'
+dummyDf$key[dummyDf$key=='deg2Down'] <- 'Down'
+#dummyDf <- dplyr::arrange(dummyDf,pAdj)
+summaryDf <- dplyr::group_by(dummyDf,module) %>%
+  dplyr::summarise(meanPval = mean(-log10(pAdj))) %>%
+  dplyr::arrange((meanPval))
+
+dummyDf$module <- factor(dummyDf$module,levels = summaryDf$module)
+ggplot2::theme_set(ggplot2::theme_bw(base_size = 12))
+g <- ggplot2::ggplot(dummyDf,ggplot2::aes(x=module,
+                                            y= -log10(pAdj),
+                                            fill = key))
+
+g <- g + ggplot2::geom_col(position = 'dodge')
+g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
+g <- g + ggplot2::coord_flip()
+g <- g + ggplot2::geom_hline(ggplot2::aes(colour = 'red'),yintercept = -log10(0.05))
+g <- g + ggplot2::ggtitle('cog dec DEG Banner Module enrichments\n(pathology adjusted)')
+g
+ggplot2::ggsave('banner_cogdec_pathology.png')
+```
 
 Cell type enrichments
 
 ```{r}
 #targetedGeneSets <- AMPAD::collateEnrichmentSets()
 
-actPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
-                                         actList,
-                                         targetedGeneSets$cell,
-                                         allGenes = actDf$Gene)
+# actPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
+#                                          actList,
+#                                          targetedGeneSets$cell,
+#                                          allGenes = actDf$Gene)
 
 blsaPval <- utilityFunctions::outerSapply(utilityFunctions::fisherWrapperPval,
                                           blsaList,
